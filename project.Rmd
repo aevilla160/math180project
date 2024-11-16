@@ -1,0 +1,53 @@
+```{r}
+install.packages("randomForest")
+library(randomForest)
+diabetes <-  read.csv("diabetes_012_health_indicators_BRFSS2015.csv",
+                  na.strings = "?", stringsAsFactors = T)
+head(diabetes)
+colnames(diabetes)
+#pre process
+diabetes <- subset(diabetes, select = -c(Income, DiffWalk,Stroke,HeartDiseaseorAttack,AnyHealthcare,NoDocbcCost,GenHlth,MentHlth,PhysHlth,Education))
+colnames(diabetes)
+diabetes <- na.omit(diabetes)
+
+
+str(diabetes$Diabetes_012)
+diabetes$Diabetes_012 <- as.factor(diabetes$Diabetes_012)
+str(diabetes$Diabetes_012)
+table(diabetes$Diabetes_012)
+
+#fit 
+set.seed(123) 
+train_index <- sample(1:nrow(diabetes), 0.7 * nrow(diabetes))
+train_data <- diabetes[train_index, ]
+test_data <- diabetes[-train_index, ]
+
+rf_model <- randomForest(Diabetes_012 ~ .,
+                         data = train_data, 
+                         mtry = 3,           
+                         importance = TRUE)  
+print(rf_model)
+
+predictions <- predict(rf_model, newdata = test_data)
+confusionMatrix <- table(test_data$Diabetes_012, predictions)
+print(confusionMatrix)
+
+
+```
+
+```{r}
+install.packages("caret")
+
+install.packages("nnet")
+library(nnet)
+
+model_multinom <- multinom(Diabetes_012 ~ ., data = train_data)
+
+summary(model_multinom)
+
+predictions <- predict(model_multinom, newdata = test_data)
+library(caret)
+confusion_mat <- confusionMatrix(predictions, test_data$Diabetes_012)
+print(confusion_mat)
+
+```
