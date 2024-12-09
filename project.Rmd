@@ -1,6 +1,6 @@
 ```{r}
 diabetes <-  read.csv("diabetes_binary_5050split_health_indicators_BRFSS2015.csv",
-                na.strings = "?", stringsAsFactors = T)
+                  na.strings = "?", stringsAsFactors = T)
 head(diabetes)
 colnames(diabetes)
 ```
@@ -36,70 +36,79 @@ numeric_data <- diabetes[sapply(diabetes, is.numeric)]
 
 cor_matrix <- cor(numeric_data, use = "complete.obs")
 corrplot(cor_matrix, method = "color", addCoef.col = "black",
-        tl.col = "black", tl.srt = 45, number.cex = 0.7)
+         tl.col = "black", tl.srt = 45, number.cex = 0.7)
 ```
 
 ```{r}
+# Install and load necessary package
+#install.packages("pROC")
+library(pROC)
 library(randomForest)
-#fit 
+
 set.seed(123) 
 train_index <- sample(1:nrow(diabetes), 0.7 * nrow(diabetes))
 train_data <- diabetes[train_index, ]
 test_data <- diabetes[-train_index, ]
 
-rf_model <- randomForest(Diabetes_binary ~ .,
-                        data = train_data, 
-                        mtry = 4,           
-                        importance = TRUE)  
-print(rf_model)
+rf_model <- randomForest(Diabetes_binary ~ ., data = train_data, mtry = 4, importance = TRUE)
 
-predictions <- predict(rf_model, newdata = test_data)
-confusionMatrix <- table(test_data$Diabetes_binary, predictions)
-print(confusionMatrix)
-# Variable Importance Plot  
-varImpPlot(rf_model, main = "Variable Importance Plot", pch = 19, col = "blue")
+rf_probabilities <- predict(rf_model, newdata = test_data, type = "prob")[, 2]
+
+rf_roc_curve <- roc(test_data$Diabetes_binary, rf_probabilities)
+
+plot(rf_roc_curve, col = "blue", main = "ROC Curve for Random Forest Model")
+
+rf_auc_value <- auc(rf_roc_curve)
+print(paste("AUC:", rf_auc_value))
+text(0.5, 0.5, paste("AUC =", round(rf_auc_value, 2)), col = "red", cex = 1.2)
 
 
 ```
 
 ```{r}
-# Fit a Binomial Logistic Regression Model
 model_binomial <- glm(Diabetes_binary ~ ., data = train_data, family = binomial())
 
-# Model Summary
 summary(model_binomial)
 
-# Predictions
-# Predict probabilities
-probabilities <- predict(model_binomial, newdata = test_data, type = "response")
+lm_probabilities <- predict(model_binomial, newdata = test_data, type = "response")
 
-# Convert probabilities to class predictions (0 or 1)
-#predictions <- ifelse(probabilities > 0.5, "1", "0")
+lm_predictions <- ifelse(lm_probabilities > 0.5, "1", "0")
 
-# Confusion Matrix
-library(caret)
-confusion_mat <- confusionMatrix(as.factor(predictions), as.factor(test_data$Diabetes_binary))
-print(confusion_mat)
+lm_confusion_mat <- table(Predicted = lm_predictions, Actual = test_data$Diabetes_binary)
+print(lm_confusion_mat)
+
 ```
 
 
 ```{r}
-install.packages("pheatmap")
+#install.packages("pheatmap")
 library(pheatmap)
-install.packages("RColorBrewer")
+#install.packages("RColorBrewer")
 library(RColorBrewer)
 # do the heat map
-pheatmap(confusion_mat$table, color = colorRampPalette(rev(brewer.pal(9, "Blues")))(100), fontsize = 10, fontsize_row = 10, fontsize_col = 10, cluster_rows = T, cluster_cols = T, display_numbers = T, number_format = "%.0f", main = "Confusion Matrix Heatmap")
+pheatmap(
+  confusion_mat,
+  color = colorRampPalette(rev(brewer.pal(9, "Blues")))(100),
+  fontsize = 10,
+  fontsize_row = 10,
+  fontsize_col = 10,
+  cluster_rows = FALSE, 
+  cluster_cols = FALSE, 
+  display_numbers = TRUE,
+  number_format = "%.0f",
+  main = "Confusion Matrix Heatmap"
+)
 ```
 
 
 ```{r}
 library(pROC)
-roc_curve <- roc(test_data$Diabetes_binary, probabilities)
-plot(roc_curve, col = "blue", lwd = 2)
-auc(roc_curve)
+lm_roc_curve <- roc(test_data$Diabetes_binary, lm_probabilities)
+plot(lm_roc_curve, col = "blue", lwd = 2, main = "ROC Curve for LM Model")
+lm_auc_value <- auc(lm_roc_curve)
+print(paste("AUC:", lm_auc_value))
+text(0.5, 0.5, paste("AUC =", round(lm_auc_value, 2)), col = "red", cex = 1.2)
 ```       
-
 
 ```{r}
 
@@ -117,5 +126,5 @@ reticulate::use_condaenv(condaenv = "r-tensorflow")
 modelnn <- keras_model_sequential()
 modelnn %>% layer_dense(units = 1, input_shape = c(1))
 modelnn %>% compile(loss = "mse", optimizer = optimizer_rmsprop(), metrics = c("mean_absolute_error"))
-modelnn %>% fit(X, diabetes$Diabetes_binary, epochs = 10, batch_size = 32)
-```
+modelnn %>% fit(X,diabetes$Diabetes_binary, batch_size = 32, epochs=200)
+```w
