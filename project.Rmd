@@ -56,6 +56,8 @@ print(rf_model)
 predictions <- predict(rf_model, newdata = test_data)
 confusionMatrix <- table(test_data$Diabetes_binary, predictions)
 print(confusionMatrix)
+# Variable Importance Plot  
+varImpPlot(rf_model, main = "Variable Importance Plot", pch = 19, col = "blue")
 
 
 ```
@@ -98,6 +100,7 @@ plot(roc_curve, col = "blue", lwd = 2)
 auc(roc_curve)
 ```       
 
+
 ```{r}
 
 #library(neuralnet)
@@ -114,5 +117,5 @@ reticulate::use_condaenv(condaenv = "r-tensorflow")
 modelnn <- keras_model_sequential()
 modelnn %>% layer_dense(units = 1, input_shape = c(1))
 modelnn %>% compile(loss = "mse", optimizer = optimizer_rmsprop(), metrics = c("mean_absolute_error"))
-modelnn %>% fit(X,diabetes$Diabetes_binary, batch_size = 32, epochs=200)
+modelnn %>% fit(X, diabetes$Diabetes_binary, epochs = 10, batch_size = 32)
 ```
