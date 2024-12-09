@@ -89,3 +89,30 @@ library(RColorBrewer)
 # do the heat map
 pheatmap(confusion_mat$table, color = colorRampPalette(rev(brewer.pal(9, "Blues")))(100), fontsize = 10, fontsize_row = 10, fontsize_col = 10, cluster_rows = T, cluster_cols = T, display_numbers = T, number_format = "%.0f", main = "Confusion Matrix Heatmap")
 ```
+
+
+```{r}
+library(pROC)
+roc_curve <- roc(test_data$Diabetes_binary, probabilities)
+plot(roc_curve, col = "blue", lwd = 2)
+auc(roc_curve)
+```       
+
+```{r}
+
+#library(neuralnet)
+# Fit a Neural Network Model
+#model_neural <- neuralnet(Diabetes_binary ~ ., data = train_data, hidden = 2)
+#our ouput is binary so we use the logistic activation function
+# Model Summary
+#summary(model_neural)
+numeric_data <- diabetes[sapply(diabetes, is.numeric)]
+numeric_data <- scale(numeric_data)
+X = model.matrix(diabetes$Diabetes_binary ~ numeric_data - 1)
+library(keras)
+reticulate::use_condaenv(condaenv = "r-tensorflow")
+modelnn <- keras_model_sequential()
+modelnn %>% layer_dense(units = 1, input_shape = c(1))
+modelnn %>% compile(loss = "mse", optimizer = optimizer_rmsprop(), metrics = c("mean_absolute_error"))
+modelnn %>% fit(X,diabetes$Diabetes_binary, batch_size = 32, epochs=200)
+```
