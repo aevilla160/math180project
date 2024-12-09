@@ -66,17 +66,29 @@ text(0.5, 0.5, paste("AUC =", round(rf_auc_value, 2)), col = "red", cex = 1.2)
 ```
 
 ```{r}
+library(caret)
+# Fit a Binomial Logistic Regression Model
 model_binomial <- glm(Diabetes_binary ~ ., data = train_data, family = binomial())
 
 summary(model_binomial)
 
 lm_probabilities <- predict(model_binomial, newdata = test_data, type = "response")
+var_importance <- varImp(model_binomial, scale = FALSE)
+print(var_importance)
+plot(var_importance)
+# Predictions
+# Predict probabilities
+probabilities <- predict(model_binomial, newdata = test_data, type = "response")
 
 lm_predictions <- ifelse(lm_probabilities > 0.5, "1", "0")
 
 lm_confusion_mat <- table(Predicted = lm_predictions, Actual = test_data$Diabetes_binary)
 print(lm_confusion_mat)
 
+# Confusion Matrix
+
+confusion_mat <- confusionMatrix(as.factor(predictions), as.factor(test_data$Diabetes_binary))
+print(confusion_mat)
 ```
 
 
@@ -127,4 +139,4 @@ modelnn <- keras_model_sequential()
 modelnn %>% layer_dense(units = 1, input_shape = c(1))
 modelnn %>% compile(loss = "mse", optimizer = optimizer_rmsprop(), metrics = c("mean_absolute_error"))
 modelnn %>% fit(X,diabetes$Diabetes_binary, batch_size = 32, epochs=200)
-```w
+```
