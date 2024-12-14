@@ -14,6 +14,20 @@ colnames(diabetes)
 diabetes <- na.omit(diabetes)
 
 ```
+```{r}
+Q1 <- quantile(diabetes$BMI, 0.25, na.rm = TRUE) # 25th percentile
+Q3 <- quantile(diabetes$BMI, 0.75, na.rm = TRUE) # 75th percentile
+IQR_BMI <- Q3 - Q1 
+
+lower_bound <- Q1 - 1.5 * IQR_BMI
+upper_bound <- Q3 + 1.5 * IQR_BMI
+
+diabetes_clean <- subset(diabetes, BMI >= lower_bound & BMI <= upper_bound)
+
+summary(diabetes_clean$BMI)
+nrow(diabetes_clean) 
+
+```
 
 
 
@@ -74,6 +88,19 @@ cor_matrix <- cor(numeric_data, use = "complete.obs")
 corrplot(cor_matrix, method = "color", addCoef.col = "black",
          tl.col = "black", tl.srt = 45, number.cex = 0.7)
 ```
+```{r}
+ggplot(diabetes, aes(x = Age)) +
+  geom_histogram(binwidth = 1, fill = "red", color = "black") +
+  labs(title = "Distribution of Age", x = "Age", y = "Frequency") +
+  theme_minimal()
+```
+```{r}
+
+ggplot(diabetes, aes(x = BMI)) +
+  geom_histogram(binwidth = 1, fill = "red", color = "black") +
+  labs(title = "Distribution of BMI", x = "BMI", y = "Frequency") +
+  theme_minimal()
+```
 
 ```{r}
 # Install and load necessary package
@@ -113,7 +140,7 @@ library(randomForest)
 set.seed(123)
 
 # Define k for k-fold cross-validation
-k <- 10
+k <- 2
 
 # Create folds
 folds <- sample(rep(1:k, length.out = nrow(diabetes)))
