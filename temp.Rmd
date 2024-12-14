@@ -1,0 +1,158 @@
+```{r}
+diabetes <-  read.csv("diabetes_binary_5050split_health_indicators_BRFSS2015.csv",
+                  na.strings = "?", stringsAsFactors = T)
+head(diabetes)
+colnames(diabetes)
+```
+
+
+
+```{r}
+#pre process
+diabetes <- subset(diabetes, select = -c(Income, DiffWalk,Stroke,HeartDiseaseorAttack,AnyHealthcare,NoDocbcCost,GenHlth,MentHlth,PhysHlth,Education))
+colnames(diabetes)
+diabetes <- na.omit(diabetes)
+
+
+# Assuming the 'diabetes' dataset is already loaded and cleaned
+ggplot(diabetes, aes(x = Age)) +
+  geom_histogram(binwidth = 1, fill = "red", color = "black") +
+  labs(title = "Distribution of Age", x = "Age", y = "Frequency") +
+  theme_minimal()
+
+
+```
+
+
+
+```{r}
+str(diabetes$Diabetes_binary)
+diabetes$Diabetes_binary <- as.factor(diabetes$Diabetes_binary)
+str(diabetes$Diabetes_binary)
+table(diabetes$Diabetes_binary)
+
+
+```
+
+
+```{r}
+
+library(ggplot2)
+library(corrplot)
+
+numeric_data <- diabetes[sapply(diabetes, is.numeric)]
+
+cor_matrix <- cor(numeric_data, use = "complete.obs")
+corrplot(cor_matrix, method = "color", addCoef.col = "black",
+         tl.col = "black", tl.srt = 45, number.cex = 0.7)
+```
+
+```{r}
+# Install and load necessary package
+#install.packages("pROC")
+library(pROC)
+library(randomForest)
+
+set.seed(123) 
+train_index <- sample(1:nrow(diabetes), 0.7 * nrow(diabetes))
+train_data <- diabetes[train_index, ]
+test_data <- diabetes[-train_index, ]
+
+rf_model <- randomForest(Diabetes_binary ~ ., data = train_data, mtry = 4, importance = TRUE)
+
+rf_probabilities <- predict(rf_model, newdata = test_data, type = "prob")[, 2]
+
+rf_roc_curve <- roc(test_data$Diabetes_binary, rf_probabilities)
+
+plot(rf_roc_curve, col = "blue", main = "ROC Curve for Random Forest Model")
+
+rf_auc_value <- auc(rf_roc_curve)
+print(paste("AUC:", rf_auc_value))
+text(0.5, 0.5, paste("AUC =", round(rf_auc_value, 2)), col = "red", cex = 1.2)
+
+
+```
+```{r}
+rf_predictions <- predict(rf_model, newdata = test_data)
+
+conf_matrix <- table(Predicted = rf_predictions, Actual = test_data$Diabetes_binary)
+
+# Visualize the confusion matrix using pheatmap
+pheatmap(
+  conf_matrix,
+  color = colorRampPalette(brewer.pal(4, "Reds"))(10), # Using lighter shades of red
+  fontsize = 12, # Increase font size for better readability
+  fontsize_row = 12,
+  fontsize_col = 12,
+  cluster_rows = FALSE, 
+  cluster_cols = FALSE, 
+  display_numbers = TRUE,
+  number_format = "%.0f",
+  main = "RF Confusion Matrix Heatmap",
+  cellwidth = 100, # Adjust cell width for smaller matrix
+  cellheight = 100 # Adjust cell height for smaller matrix
+)
+```
+
+```{r}
+model_binomial <- glm(Diabetes_binary ~ ., data = train_data, family = binomial())
+
+summary(model_binomial)
+
+lm_probabilities <- predict(model_binomial, newdata = test_data, type = "response")
+
+lm_predictions <- ifelse(lm_probabilities > 0.5, "1", "0")
+
+lm_confusion_mat <- table(Predicted = lm_predictions, Actual = test_data$Diabetes_binary)
+print(lm_confusion_mat)
+
+```
+
+
+```{r}
+library(pheatmap)
+library(RColorBrewer)
+pheatmap(
+  confusion_mat,
+  color = colorRampPalette(brewer.pal(4, "Reds"))(10), # Using lighter shades of red
+  fontsize = 12, # Increase font size for better readability
+  fontsize_row = 12,
+  fontsize_col = 12,
+  cluster_rows = FALSE, 
+  cluster_cols = FALSE, 
+  display_numbers = TRUE,
+  number_format = "%.0f",
+  main = "LM Confusion Matrix Heatmap",
+  cellwidth = 100, # Adjust cell width for smaller matrix
+  cellheight = 100 # Adjust cell height for smaller matrix
+)
+```
+
+
+```{r}
+library(pROC)
+lm_roc_curve <- roc(test_data$Diabetes_binary, lm_probabilities)
+plot(lm_roc_curve, col = "blue", lwd = 2, main = "ROC Curve for LM Model")
+lm_auc_value <- auc(lm_roc_curve)
+print(paste("AUC:", lm_auc_value))
+text(0.5, 0.5, paste("AUC =", round(lm_auc_value, 2)), col = "red", cex = 1.2)
+```       
+
+```{r}
+
+#library(neuralnet)
+# Fit a Neural Network Model
+#model_neural <- neuralnet(Diabetes_binary ~ ., data = train_data, hidden = 2)
+#our ouput is binary so we use the logistic activation function
+# Model Summary
+#summary(model_neural)
+numeric_data <- diabetes[sapply(diabetes, is.numeric)]
+numeric_data <- scale(numeric_data)
+X = model.matrix(diabetes$Diabetes_binary ~ numeric_data - 1)
+library(keras)
+reticulate::use_condaenv(condaenv = "r-tensorflow")
+modelnn <- keras_model_sequential()
+modelnn %>% layer_dense(units = 1, input_shape = c(1))
+modelnn %>% compile(loss = "mse", optimizer = optimizer_rmsprop(), metrics = c("mean_absolute_error"))
+modelnn %>% fit(X,diabetes$Diabetes_binary, batch_size = 32, epochs=200)
+```w
