@@ -32,11 +32,13 @@ nrow(diabetes_clean)
 
 
 ```{r}
-str(diabetes$Diabetes_binary)
-diabetes$Diabetes_binary <- as.factor(diabetes$Diabetes_binary)
-str(diabetes$Diabetes_binary)
-table(diabetes$Diabetes_binary)
 
+# Display the structure (data type and levels) of the variable 'Diabetes_binary' in the 'diabetes' dataset.
+str(diabetes$Diabetes_binary)
+#Conver to 0,1 binary classiifcation 
+diabetes$Diabetes_binary <- as.factor(diabetes$Diabetes_binary)
+#output again to verify re-factor
+str(diabetes$Diabetes_binary)
 
 ```
 ```{r}
@@ -52,10 +54,7 @@ table(diabetes$Diabetes_binary)
 #       y = "Values") +
 #  theme_minimal()
 
-```
 
-```{r}
-pairs(numeric_data, pch = 19, col = "darkred")
 ```
 
 ```{r}
@@ -78,23 +77,29 @@ ggplot(diabetes, aes(x = HighBP, y = Age, color = Diabetes_binary)) +
 ```
 
 ```{r}
-
+#Load the ggplot2 and corrplot libraries for data visualization and correlation plotting
+#install.package("ggplot2")
+#install.package("corrplot")
 library(ggplot2)
 library(corrplot)
-
+#Subset the 'diabetes' dataset to include only numeric columns
 numeric_data <- diabetes[sapply(diabetes, is.numeric)]
 
+#Compute the correlation matrix for the numeric variables, using only complete observations (no missing data)
 cor_matrix <- cor(numeric_data, use = "complete.obs")
+#Create a heatmap to visualize the correlation matrix using the corrplot function
 corrplot(cor_matrix, method = "color", addCoef.col = "black",
          tl.col = "black", tl.srt = 45, number.cex = 0.7)
 ```
 ```{r}
+#Using ggplot visualize the distribution of age in our dataset
 ggplot(diabetes, aes(x = Age)) +
   geom_histogram(binwidth = 1, fill = "red", color = "black") +
   labs(title = "Distribution of Age", x = "Age", y = "Frequency") +
   theme_minimal()
 ```
 ```{r}
+#Using ggplot visualize the distribution of BMI in our dataset
 
 ggplot(diabetes, aes(x = BMI)) +
   geom_histogram(binwidth = 1, fill = "red", color = "black") +
@@ -103,30 +108,72 @@ ggplot(diabetes, aes(x = BMI)) +
 ```
 
 ```{r}
-# Install and load necessary package
-#install.packages("pROC")
+# Install and load necessary packages
+# install.packages("pROC")
 library(pROC)
 library(randomForest)
 
-set.seed(123) 
+# Ensure the target variable is a factor (for classification)
+diabetes$Diabetes_binary <- as.factor(diabetes$Diabetes_binary)
+
+# Set a seed for reproducibility
+set.seed(123)
+
+# Split the data into training (70%) and testing (30%) sets
 train_index <- sample(1:nrow(diabetes), 0.7 * nrow(diabetes))
 train_data <- diabetes[train_index, ]
 test_data <- diabetes[-train_index, ]
 
+# Train the Random Forest model
 rf_model <- randomForest(Diabetes_binary ~ ., data = train_data, mtry = 3, importance = TRUE)
 
+# Generate probabilities for the test data (specifically for the positive class)
 rf_probabilities <- predict(rf_model, newdata = test_data, type = "prob")[, 2]
 
+# Create the ROC curve
 rf_roc_curve <- roc(test_data$Diabetes_binary, rf_probabilities)
 
+# Plot the ROC curve
 plot(rf_roc_curve, col = "blue", main = "ROC Curve for Random Forest Model")
 
+# Calculate the AUC
 rf_auc_value <- auc(rf_roc_curve)
 print(paste("AUC:", rf_auc_value))
+
+# Add the AUC value to the plot
 text(0.5, 0.5, paste("AUC =", round(rf_auc_value, 2)), col = "red", cex = 1.2)
+
+importance(rf_model)
+varImpPlot(rf_model)
 
 
 ```
+```{r}
+#install.packages("pheatmap")
+#install.packages("RColorBrewer")
+library(pheatmap)
+library(RColorBrewer)
+
+rf_predictions <- ifelse(rf_probabilities > 0.5, "1", "0")
+rf_confusion_mat <- table(Predicted = rf_predictions, Actual = test_data$Diabetes_binary)
+print(rf_confusion_mat)
+
+
+
+pheatmap(
+  rf_confusion_mat,
+  color = colorRampPalette(rev(brewer.pal(9, "Reds")))(100),
+  fontsize = 10,
+  fontsize_row = 10,
+  fontsize_col = 10,
+  cluster_rows = FALSE, 
+  cluster_cols = FALSE, 
+  display_numbers = TRUE,
+  number_format = "%.0f",
+  main = "Confusion Matrix Heatmap"
+)
+```
+
 
 ```{r}
 # Install necessary packages if not already installed
@@ -141,7 +188,7 @@ set.seed(123)
 
 # Define k for k-fold cross-validation
 k <- 2
-
+# k <- 10 #commented out for portability
 # Create folds
 folds <- sample(rep(1:k, length.out = nrow(diabetes)))
 
@@ -181,9 +228,14 @@ library(ggplot2)
 # Fit a Binomial Logistic Regression Model
 model_binomial <- glm(Diabetes_binary ~ ., data = train_data, family = binomial())
 
+# Display the summary of the logistic regression model
 summary(model_binomial)
 
+# Generate predicted probabilities for the test data
 lm_probabilities <- predict(model_binomial, newdata = test_data, type = "response")
+
+
+#Computing of variable importance using caret
 var_importance <- varImp(model_binomial, scale = FALSE)
 print(var_importance)
 #plot(var_importance)
@@ -195,18 +247,21 @@ ggplot(var_importance, aes(x = reorder(rownames(var_importance), Overall), y = O
        x = "Variables",
        y = "Importance", ) +
   theme_minimal()
-# Predictions
+
+
 # Predict probabilities
 probabilities <- predict(model_binomial, newdata = test_data, type = "response")
 
+# Generate binary predictions using a threshold of 0.5
 lm_predictions <- ifelse(lm_probabilities > 0.5, "1", "0")
 
 lm_confusion_mat <- table(Predicted = lm_predictions, Actual = test_data$Diabetes_binary)
 print(lm_confusion_mat)
 
-# Confusion Matrix
+# Create a confusion matrix using the caret package
+confusion_mat <- confusionMatrix(as.factor(lm_predictions), as.factor(test_data$Diabetes_binary))
 
-confusion_mat <- confusionMatrix(as.factor(predictions), as.factor(test_data$Diabetes_binary))
+# Print the confusion matrix
 print(confusion_mat)
 ```
 
@@ -219,7 +274,7 @@ library(RColorBrewer)
 # do the heat map
 pheatmap(
   confusion_mat,
-  color = colorRampPalette(rev(brewer.pal(9, "Blues")))(100),
+  color = colorRampPalette(rev(brewer.pal(9, "Reds")))(100),
   fontsize = 10,
   fontsize_row = 10,
   fontsize_col = 10,
@@ -241,21 +296,4 @@ print(paste("AUC:", lm_auc_value))
 text(0.5, 0.5, paste("AUC =", round(lm_auc_value, 2)), col = "red", cex = 1.2)
 ```       
 
-```{r}
 
-#library(neuralnet)
-# Fit a Neural Network Model
-#model_neural <- neuralnet(Diabetes_binary ~ ., data = train_data, hidden = 2)
-#our ouput is binary so we use the logistic activation function
-# Model Summary
-#summary(model_neural)
-numeric_data <- diabetes[sapply(diabetes, is.numeric)]
-numeric_data <- scale(numeric_data)
-X = model.matrix(diabetes$Diabetes_binary ~ numeric_data - 1)
-library(keras)
-reticulate::use_condaenv(condaenv = "r-tensorflow")
-modelnn <- keras_model_sequential()
-modelnn %>% layer_dense(units = 1, input_shape = c(1))
-modelnn %>% compile(loss = "mse", optimizer = optimizer_rmsprop(), metrics = c("mean_absolute_error"))
-modelnn %>% fit(X,diabetes$Diabetes_binary, batch_size = 32, epochs=200)
-```
